@@ -48,7 +48,7 @@ function getTokenFromCookie() {
 function getAxiosConfig() {
   const token = getTokenFromCookie()
   return {
-    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000",
+    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://authbackend-cc2d.onrender.com",
     withCredentials: true,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   }

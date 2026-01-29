@@ -37,7 +37,7 @@ type Job = {
 }
 
 function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000"
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "https://authbackend-cc2d.onrender.com"
 }
 
 async function fetchCompany(companySlug: string): Promise<Company> {
