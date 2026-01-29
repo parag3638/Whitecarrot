@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import apiClient, { getTokenFromCookie } from "@/lib/apiClient"
+import axios from "axios"
 import Cookies from "js-cookie"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,6 +39,19 @@ type Section = {
   title: string
   content: string | string[]
   order: number
+}
+
+function getTokenFromCookie() {
+  return Cookies.get("access_token") ?? null
+}
+
+function getAxiosConfig() {
+  const token = getTokenFromCookie()
+  return {
+    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000",
+    withCredentials: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  }
 }
 
 function normalizeCompany(
@@ -168,7 +181,10 @@ export default function AdminPanel() {
       setLoading(true)
       setError(null)
       try {
-        const res = await apiClient.get<{ company?: Company } | Company>(endpointBase)
+        const res = await axios.get<{ company?: Company } | Company>(
+          endpointBase,
+          getAxiosConfig()
+        )
         const data = normalizeCompany(res.data)
         setCompany(data)
         const nextTheme = data?.theme ?? {}
@@ -209,11 +225,15 @@ export default function AdminPanel() {
         ...section,
         order: index + 1,
       }))
-      const res = await apiClient.put<{ company?: Company } | Company>(endpointBase, {
-        theme,
-        sections: payloadSections,
-        culture_video_url: cultureVideoUrl,
-      })
+      const res = await axios.put<{ company?: Company } | Company>(
+        endpointBase,
+        {
+          theme,
+          sections: payloadSections,
+          culture_video_url: cultureVideoUrl,
+        },
+        getAxiosConfig()
+      )
       const data = normalizeCompany(res.data)
       setCompany(data)
       const nextTheme = data?.theme ?? theme
@@ -254,8 +274,11 @@ export default function AdminPanel() {
     setActionLoading(true)
     setError(null)
     try {
-      await apiClient.post(`${endpointBase}/${action}`)
-      const res = await apiClient.get<{ company?: Company } | Company>(endpointBase)
+      await axios.post(`${endpointBase}/${action}`, undefined, getAxiosConfig())
+      const res = await axios.get<{ company?: Company } | Company>(
+        endpointBase,
+        getAxiosConfig()
+      )
       const data = normalizeCompany(res.data)
       setCompany(data)
       toast({
