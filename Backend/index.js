@@ -17,7 +17,8 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 
 const app = express();
 
-const allowedOrigins = ["http://localhost:3000"];
+const allowedOrigins = ["http://localhost:3000", "https://whitecarrot-two.vercel.app"];
+
 app.use(
   cors({
     origin: (origin, callback) => {
