@@ -1,45 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import axios from "axios"
 import Cookies from "js-cookie"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-
-type Company = {
-  name: string
-  slug: string
-  status?: string
-  theme?: Record<string, unknown>
-  sections?: unknown[]
-  culture_video_url?: string
-}
-
-type ApiError = {
-  status?: number
-  message: string
-}
-
-type SectionType = "about" | "values" | "perks" | "culture" | "faq"
-
-type Section = {
-  id: string
-  type: SectionType
-  title: string
-  content: string | string[]
-  order: number
-}
+import AdminHeaderCard from "./components/AdminHeaderCard"
+import BrandingCard from "./components/BrandingCard"
+import ErrorState from "./components/ErrorState"
+import LoadingState from "./components/LoadingState"
+import SectionsCard from "./components/SectionsCard"
+import type { ApiError, Company, Section, SectionType, ThemeState } from "./types"
 
 function getTokenFromCookie() {
   return Cookies.get("access_token") ?? null
@@ -130,12 +101,13 @@ function getCompanySlugMap(): Record<string, string> {
 }
 
 export default function AdminPanel() {
+  const router = useRouter()
   const { toast } = useToast()
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
-  const [theme, setTheme] = useState({
+  const [theme, setTheme] = useState<ThemeState>({
     primaryColor: "#0f172a",
     accentColor: "#f97316",
     logoUrl: "",
@@ -146,16 +118,6 @@ export default function AdminPanel() {
   const [cultureVideoUrl, setCultureVideoUrl] = useState("")
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [newSectionType, setNewSectionType] = useState<SectionType>("about")
-  const colorPresets = [
-    "#0f172a",
-    "#1e293b",
-    "#111827",
-    "#0ea5e9",
-    "#38bdf8",
-    "#22c55e",
-    "#f97316",
-    "#f59e0b",
-  ]
 
   const companySlug = useMemo(() => {
     const map = getCompanySlugMap()
@@ -174,6 +136,7 @@ export default function AdminPanel() {
     if (!token) {
       setError({ status: 401, message: "Access token is missing. Please login." })
       setLoading(false)
+      router.replace("/login")
       return
     }
 
@@ -202,7 +165,11 @@ export default function AdminPanel() {
           "culture_video_url" in (data ?? {}) ? String((data as Company).culture_video_url ?? "") : ""
         )
       } catch (err) {
-        setError(getErrorDetails(err))
+        const details = getErrorDetails(err)
+        setError(details)
+        if (details.status === 401 || details.status === 403) {
+          router.replace("/login")
+        }
       } finally {
         setLoading(false)
       }
@@ -260,6 +227,10 @@ export default function AdminPanel() {
     } catch (err) {
       const details = getErrorDetails(err)
       setError(details)
+      if (details.status === 401 || details.status === 403) {
+        router.replace("/login")
+        return
+      }
       toast({
         title: details.status ? `Save failed (${details.status})` : "Save failed",
         description: details.message,
@@ -291,6 +262,10 @@ export default function AdminPanel() {
     } catch (err) {
       const details = getErrorDetails(err)
       setError(details)
+      if (details.status === 401 || details.status === 403) {
+        router.replace("/login")
+        return
+      }
       toast({
         title: details.status
           ? `Request failed (${details.status})`
@@ -345,323 +320,44 @@ export default function AdminPanel() {
   }
 
   if (loading) {
-    return (
-      <div className="text-sm text-muted-foreground">Loading company data...</div>
-    )
+    return <LoadingState />
   }
 
   if (error) {
     return (
-      <Card className="flex min-h-[60vh] flex-col items-center justify-center border-red-200 bg-red-50 text-center">
-        <CardContent className="pt-6">
-          <div className="text-xs font-semibold uppercase tracking-wide text-red-500">
-            {error.status ? `Error ${error.status}` : "Error"}
-          </div>
-          <h2 className="mt-2 text-2xl font-semibold text-red-700">
-            {getErrorTitle(error.status)}
-          </h2>
-          <p className="mt-3 max-w-xl text-sm text-red-700">{error.message}</p>
-        </CardContent>
-      </Card>
+      <ErrorState
+        status={error.status}
+        title={getErrorTitle(error.status)}
+        message={error.message}
+      />
     )
   }
 
   return (
     <div className="space-y-6">
-
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div className="space-y-1">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              Recruiter Workspace
-            </div>
-            <h1 className="text-2xl font-semibold">{company?.name ?? "Company"}</h1>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-                {company?.slug ?? companySlug}
-              </span>
-              <span
-                className={
-                  company?.status === "draft"
-                    ? "rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700"
-                    : "rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700"
-                }
-              >
-                {company?.status ?? "unknown"}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleSave} disabled={actionLoading}>
-              {actionLoading ? "Saving..." : "Save"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handlePublish("publish")}
-              disabled={actionLoading}
-            >
-              Publish
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handlePublish("unpublish")}
-              disabled={actionLoading}
-            >
-              Unpublish
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Branding</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="primaryColor">Primary Color</Label>
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Input
-                  id="primaryColor"
-                  type="color"
-                  className="h-10 w-12 cursor-pointer p-1"
-                  value={theme.primaryColor}
-                  onChange={(event) =>
-                    setTheme((prev) => ({ ...prev, primaryColor: event.target.value }))
-                  }
-                />
-                <Input
-                  type="text"
-                  className="h-10 w-36 font-mono"
-                  value={theme.primaryColor}
-                  onChange={(event) =>
-                    setTheme((prev) => ({ ...prev, primaryColor: event.target.value }))
-                  }
-                  placeholder="#111827"
-                />
-                <div
-                  className="h-10 w-16 rounded-md border border-input shadow-sm"
-                  style={{ backgroundColor: theme.primaryColor }}
-                />
-                <div className="flex flex-wrap gap-2">
-                  {colorPresets.map((color) => (
-                    <button
-                      key={`primary-${color}`}
-                      type="button"
-                      className="h-7 w-7 rounded-full border border-border shadow-sm transition hover:scale-105"
-                      style={{ backgroundColor: color }}
-                      onClick={() =>
-                        setTheme((prev) => ({ ...prev, primaryColor: color }))
-                      }
-                      aria-label={`Set primary color to ${color}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="accentColor">Accent Color</Label>
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Input
-                  id="accentColor"
-                  type="color"
-                  className="h-10 w-12 cursor-pointer p-1"
-                  value={theme.accentColor}
-                  onChange={(event) =>
-                    setTheme((prev) => ({ ...prev, accentColor: event.target.value }))
-                  }
-                />
-                <Input
-                  type="text"
-                  className="h-10 w-36 font-mono"
-                  value={theme.accentColor}
-                  onChange={(event) =>
-                    setTheme((prev) => ({ ...prev, accentColor: event.target.value }))
-                  }
-                  placeholder="#22c55e"
-                />
-                <div
-                  className="h-10 w-16 rounded-md border border-input shadow-sm"
-                  style={{ backgroundColor: theme.accentColor }}
-                />
-                <div className="flex flex-wrap gap-2">
-                  {colorPresets.map((color) => (
-                    <button
-                      key={`accent-${color}`}
-                      type="button"
-                      className="h-7 w-7 rounded-full border border-border shadow-sm transition hover:scale-105"
-                      style={{ backgroundColor: color }}
-                      onClick={() =>
-                        setTheme((prev) => ({ ...prev, accentColor: color }))
-                      }
-                      aria-label={`Set accent color to ${color}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="logoUrl">Logo URL</Label>
-            <Input
-              id="logoUrl"
-              type="text"
-              value={theme.logoUrl}
-              onChange={(event) =>
-                setTheme((prev) => ({ ...prev, logoUrl: event.target.value }))
-              }
-              placeholder="https://..."
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="bannerUrl">Banner URL</Label>
-            <Input
-              id="bannerUrl"
-              type="text"
-              value={theme.bannerUrl}
-              onChange={(event) =>
-                setTheme((prev) => ({ ...prev, bannerUrl: event.target.value }))
-              }
-              placeholder="https://..."
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="font">Font</Label>
-            <Select
-              value={theme.font}
-              onValueChange={(value) =>
-                setTheme((prev) => ({ ...prev, font: value }))
-              }
-            >
-              <SelectTrigger id="font">
-                <SelectValue placeholder="Select a font" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="inter">Inter</SelectItem>
-                <SelectItem value="nunito">Nunito</SelectItem>
-                <SelectItem value="poppins">Poppins</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cultureVideoUrl">Culture Video URL</Label>
-            <Input
-              id="cultureVideoUrl"
-              type="text"
-              value={cultureVideoUrl}
-              onChange={(event) => setCultureVideoUrl(event.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
-          <CardTitle>Sections</CardTitle>
-          <div className="flex items-center gap-2">
-            <Select
-              value={newSectionType}
-              onValueChange={(value) => setNewSectionType(value as SectionType)}
-            >
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="about">About</SelectItem>
-                <SelectItem value="values">Values</SelectItem>
-                <SelectItem value="perks">Perks</SelectItem>
-                <SelectItem value="culture">Culture</SelectItem>
-                <SelectItem value="faq">FAQ</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={() => handleAddSection(newSectionType)}>
-              Add section
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {sections.length === 0 && (
-            <div className="rounded-md border border-dashed border-muted-foreground/40 p-4 text-sm text-muted-foreground">
-              No sections yet. Use the dropdown above to add one.
-            </div>
-          )}
-          {sections.map((section, index) => {
-            const isPerks = section.type === "perks"
-            const contentValue = isPerks
-              ? Array.isArray(section.content)
-                ? section.content.join("\n")
-                : ""
-              : String(section.content ?? "")
-
-            return (
-              <Card
-                key={section.id}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDrop(index)}
-                className="border-muted"
-              >
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <div className="text-xs font-semibold uppercase text-muted-foreground">
-                    {section.type}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteSection(index)}
-                  >
-                    Delete
-                  </Button>
-                </CardHeader>
-                <CardContent className="grid gap-3 pt-2">
-                  <div className="space-y-2">
-                    <Label htmlFor={`section-title-${section.id}`}>Title</Label>
-                    <Input
-                      id={`section-title-${section.id}`}
-                      value={section.title}
-                      onChange={(event) =>
-                        handleSectionChange(index, { title: event.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`section-content-${section.id}`}>Content</Label>
-                    <Textarea
-                      id={`section-content-${section.id}`}
-                      className="min-h-[120px]"
-                      value={contentValue}
-                      onChange={(event) =>
-                        handleSectionChange(index, {
-                          content: isPerks
-                            ? event.target.value
-                                .split("\n")
-                                .map((line) => line.trim())
-                                .filter(Boolean)
-                            : event.target.value,
-                        })
-                      }
-                      placeholder={
-                        isPerks
-                          ? "One perk per line"
-                          : "Write section content..."
-                      }
-                    />
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Drag this card to reorder sections.
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </CardContent>
-      </Card>
-
+      <AdminHeaderCard
+        company={company}
+        companySlug={companySlug}
+        actionLoading={actionLoading}
+        onSave={handleSave}
+        onPublish={handlePublish}
+      />
+      <BrandingCard
+        theme={theme}
+        setTheme={setTheme}
+        cultureVideoUrl={cultureVideoUrl}
+        setCultureVideoUrl={setCultureVideoUrl}
+      />
+      <SectionsCard
+        sections={sections}
+        newSectionType={newSectionType}
+        setNewSectionType={setNewSectionType}
+        onAddSection={handleAddSection}
+        onDeleteSection={handleDeleteSection}
+        onDragStart={handleDragStart}
+        onDrop={handleDrop}
+        onSectionChange={handleSectionChange}
+      />
     </div>
   )
 }
