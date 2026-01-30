@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster"
 export const metadata = {
   title: "Whitecarrot Assn",
   description: "What you are seeking is seeking you.",
-  icons: { icon: "/icon.ico", }
+  icons: { icon: "/icon.png", }
 };
 
 // Load GeistVF (Variable Font)
